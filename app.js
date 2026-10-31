@@ -45,6 +45,8 @@ function render() {
   $('total').textContent = money(totals.total);
   $('price-note').textContent = totals.unknown ? `価格未入力 ${totals.unknown}冊を除く参考合計です。` : totals.count ? '価格は目安です。実際の価格は書店でご確認ください。' : '書籍を追加すると合計が表示されます。';
   $('preview-button').disabled = !totals.count;
+  $('clear-order-button').disabled = !totals.count;
+  $('clear-order-button').hidden = state.activeTab !== 'order';
   const items = state.books.filter(b => b.list === state.activeTab);
   $('list-count').textContent = `${items.length}冊`;
   for (const list of ['order', 'later']) {
@@ -61,6 +63,19 @@ function render() {
   }
 }
 function switchTab(tab, focus = false) { state.activeTab = tab; save(); render(); if (focus) $(`${tab}-tab`).focus(); }
+$('clear-order-button').addEventListener('click', () => {
+  const removed = state.books.map((book, index) => ({ book, index })).filter(({ book }) => book.list === 'order');
+  if (!removed.length) return;
+  state.books = state.books.filter(book => book.list !== 'order');
+  if (removed.some(({ book }) => book.id === state.editingId)) resetForm();
+  save(); render();
+  notify(`注文リストの${removed.length}冊を削除しました。`, () => {
+    for (const { book, index } of removed) {
+      if (!state.books.some(current => current.id === book.id)) state.books.splice(Math.min(index, state.books.length), 0, book);
+    }
+  });
+  $('order-tab').focus({ preventScroll: true });
+});
 for (const name of ['order', 'later']) {
   $(`${name}-tab`).addEventListener('click', () => switchTab(name));
   $(`${name}-tab`).addEventListener('keydown', e => {

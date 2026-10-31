@@ -6,6 +6,13 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
 @page{size:A4 portrait;margin:15mm 13mm}
 
+.list-toolbar { gap: 12px; flex-wrap: wrap; }
+.list-toolbar-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; padding-bottom: 12px; }
+.list-toolbar-actions .list-count { padding-bottom: 0; }
+.clear-order-button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 0; background: transparent; color: #8b5145; font-size: 11px; white-space: nowrap; }
+.clear-order-button svg { width: 13px; height: 13px; }
+.clear-order-button:hover:enabled { color: #a23627; text-decoration: underline; text-underline-offset: 3px; }
+
 /* The order sheet uses the same layout in the preview and on paper. */
 .order-sheet {
   background: #fff;
