@@ -1,0 +1,13 @@
+{
+  "name": "hon-no-tayori",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub Pagesで使える書籍注文票作成サイト",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

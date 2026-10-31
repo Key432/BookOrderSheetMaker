@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#235b50">
+  <meta name="description" content="読みたい本をまとめて、いつもの書店へ。ISBN自動入力、後で買うリスト、自動保存とA4印刷に対応した書籍注文票作成ツール。">
+  <title>本のたより｜書籍注文票作成</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="screen-app">
+    <header class="site-header"><div class="header-inner">
+      <a class="brand" href="./" aria-label="本のたより ホーム"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 9c-4-3-8-3-12-2v18c4-1 8-1 12 2 4-3 8-3 12-2V7c-4-1-8-1-12 2Zm0 0v18M8 12l4 1m-4 4 4 1m8-5 4-1m-4 6 4-1"/></svg></span><span>本のたより<small>BOOK ORDER SHEET</small></span></a>
+      <div class="header-actions"><span id="save-status" class="save-status" role="status"><span></span>このブラウザーに自動保存</span><button id="help-button" class="text-button">使い方 <span aria-hidden="true">↗</span></button></div>
+    </div></header>
+    <main class="workspace">
+      <section class="intro"><div><p class="eyebrow">A LITTLE NOTE TO YOUR BOOKSTORE</p><h1>読みたい本を、書店へ。</h1><p class="intro-copy">本を選んで、注文票を印刷。<br class="mobile-only">いつもの書店に、次の一冊をお願いしよう。</p></div><div class="steps" aria-label="使い方の3ステップ"><span><b>01</b> 本を追加</span><i aria-hidden="true">—</i><span><b>02</b> 注文票を印刷</span><i aria-hidden="true">—</i><span><b>03</b> 書店へ</span></div></section>
+
+      <section class="add-panel" aria-labelledby="add-heading">
+        <div class="add-heading"><span class="section-icon" aria-hidden="true">＋</span><div><h2 id="add-heading">読みたい本を追加</h2><p>ISBNから、書籍の情報を自動で入力できます。</p></div><span class="small-label">ISBN-10 / ISBN-13 対応</span></div>
+        <form id="lookup-form" class="isbn-form"><label for="isbn">ISBN<span>本の裏表紙にある10桁または13桁の番号</span></label><div class="isbn-input-row"><div class="isbn-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5v14m3-14v14m3-14v14m4-14v14m3-14v14m3-14v14"/></svg><input id="isbn" type="text" inputmode="text" autocomplete="off" maxlength="32" placeholder="例：978-4-10-101001-4" aria-describedby="lookup-message"></div><button id="lookup-button" class="button primary" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>書籍情報を取得</button></div><p id="lookup-message" class="field-message" role="status"></p></form>
+        <div class="manual-row"><span>ISBNがわからないときは</span><button id="manual-button" class="text-button" aria-expanded="false" aria-controls="book-form"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 16 12-12 4 4L8 20H4Zm10-10 4 4"/></svg>手入力で追加 <span aria-hidden="true">＋</span></button></div>
+        <form id="book-form" class="book-form" hidden>
+          <div class="form-heading"><h3 id="form-title">書籍情報を入力</h3><button type="button" id="cancel-edit" class="text-button">閉じる ×</button></div>
+          <div class="book-fields"><label class="full">タイトル <span class="required">必須</span><input id="book-title" required maxlength="300" placeholder="書籍のタイトル"></label><label>著者<input id="book-author" maxlength="300" placeholder="著者名"></label><label>出版社<input id="book-publisher" maxlength="200" placeholder="出版社名"></label><label>ISBN<input id="book-isbn" maxlength="32" placeholder="未入力でも追加できます" aria-describedby="book-error"></label><label>価格（税込）<div class="price-input"><span>¥</span><input id="book-price" type="number" min="0" max="99999999" step="1" inputmode="numeric" placeholder="未定"></div></label></div>
+          <p id="book-error" class="field-message error" role="alert"></p><div class="form-footer"><p id="source-note">価格がわからない場合は、空欄のまま追加できます。</p><button class="button primary" type="submit" id="add-submit">＋ 注文リストに追加</button></div>
+        </form>
+      </section>
+
+      <div class="content-grid"><section class="list-panel" aria-labelledby="list-heading"><h2 class="sr-only" id="list-heading">書籍リスト</h2>
+        <div class="list-toolbar"><div class="tabs" role="tablist" aria-label="書籍リストの切り替え"><button id="order-tab" role="tab" aria-selected="true" aria-controls="book-list" tabindex="0">注文リスト <span id="order-count">0</span></button><button id="later-tab" role="tab" aria-selected="false" aria-controls="book-list" tabindex="-1">後で買う <span id="later-count">0</span></button></div><span id="list-count" class="list-count">0冊</span></div>
+        <div id="book-list" role="tabpanel" aria-labelledby="order-tab" tabindex="0"></div>
+        <div class="list-footnote"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 10V7a6 6 0 0 1 12 0v3M4 10h16v12H4Z"/></svg><span>リストはこのブラウザーに自動保存されます。</span></div>
+      </section>
+      <aside class="order-sidebar"><section class="customer-panel"><div class="card-heading"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/></svg><h2>ご注文者</h2><span>任意</span></div><p class="card-description">注文票に記載する連絡先を入力してください。</p><label for="customer-name">お名前<input id="customer-name" autocomplete="name" maxlength="100" placeholder="例：山田 太郎"></label><label for="customer-phone">電話番号<input id="customer-phone" type="tel" autocomplete="tel" maxlength="40" placeholder="例：090-1234-5678"></label><p class="privacy-note">連絡先はこのブラウザー内に保存されます。</p></section>
+        <section class="summary-panel" aria-labelledby="summary-heading"><div class="summary-label"><h2 id="summary-heading">今回のご注文</h2><span id="summary-count">0冊</span></div><div class="total-line"><span>合計金額 <small>（税込）</small></span><strong id="total">¥0</strong></div><p id="price-note" class="price-note">書籍を追加すると合計が表示されます。</p><button id="preview-button" class="button primary print-button" disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 8V3h12v5M6 17H3V9h18v8h-3M6 14h12v7H6Z"/><path d="M17 11h1"/></svg>注文票を確認・印刷</button><p class="print-note">A4サイズ対応 <span>·</span> PDFとしても保存できます</p></section>
+        <div class="aside-tip"><span aria-hidden="true">↳</span><p>迷っている本は「後で買う」へ。<br>読みたい気持ちを、そっと残しておけます。</p></div>
+      </aside></div>
+      <footer class="site-footer"><span>本と出会う、そのつづきを。</span><span>本のたより <i>·</i> 書誌情報：<a href="https://openbd.jp/" target="_blank" rel="noopener noreferrer">openBD ↗</a></span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="undo-button" hidden>元に戻す</button><button id="toast-close" aria-label="通知を閉じる">×</button></div>
+  <dialog id="help-dialog" class="help-dialog"><div class="dialog-heading"><h2>本のたよりの使い方</h2><button data-close="help-dialog" class="icon-button" aria-label="閉じる">×</button></div><ol class="help-steps"><li><strong>読みたい本を追加</strong><p>ISBNを入力して書籍情報を取得するか、手入力で追加します。価格や内容を確認してからリストに入れてください。</p></li><li><strong>注文票を確認・印刷</strong><p>お名前と電話番号を入力して、A4縦の注文票を印刷します。印刷画面でPDF保存も選べます。</p></li><li><strong>いつもの書店へ</strong><p>印刷した注文票を書店にお渡しください。注文の可否や実際の価格は書店でご確認ください。</p></li></ol><p class="help-storage">注文リスト、「後で買う」、入力中の内容、連絡先はこのブラウザーに保存されます。履歴・サイトデータの削除やプライベートブラウジング終了で消える場合があります。ISBN検索時はISBNのみをopenBDに送信します。</p><button data-close="help-dialog" class="button primary">はじめる</button></dialog>
+  <dialog id="preview-dialog" class="preview-dialog"><div class="preview-toolbar"><div><strong>注文票のプレビュー</strong><span>A4・縦 / 注文リストのみを印刷</span></div><div><button data-close="preview-dialog" class="button secondary">閉じる</button><button id="print-button" class="button primary">印刷する / PDF保存</button></div></div><div id="preview-content" class="preview-content"></div></dialog>
+  <div id="print-root"></div>
+  <noscript><p class="noscript">このサイトを使用するにはJavaScriptを有効にしてください。</p></noscript>
+</body>
+</html>
