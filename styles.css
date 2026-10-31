@@ -69,19 +69,19 @@
 .sheet-table th:first-child { width: 42px; }
 .sheet-table th:last-child { width: 96px; text-align: right; }
 .sheet-table td {
-  padding: 21px 0 22px;
+  padding: 14px 0 15px;
   border-bottom: 1px solid #c6cec8;
   vertical-align: top;
   overflow-wrap: anywhere;
 }
 .sheet-table td:nth-child(2) { padding-right: 24px; }
 .sheet-number { font-size: 15px; font-variant-numeric: tabular-nums; }
-.sheet-book-title { display: block; font-size: 18px; font-weight: 700; line-height: 1.55; }
-.sheet-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; margin: 15px 0 0; }
+.sheet-book-title { display: block; font-size: 18px; font-weight: 700; line-height: 1.4; }
+.sheet-meta { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 8px 24px; margin: 8px 0 0; }
 .sheet-meta > div { min-width: 0; }
-.sheet-meta dt { font-size: 10px; font-weight: 500; color: #414c44; margin-bottom: 3px; }
-.sheet-meta dd { font-size: 16px; font-weight: 700; color: #000; margin: 0; line-height: 1.6; }
-.sheet-isbn { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; font-size: 12px; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+.sheet-meta dt { font-size: 10px; font-weight: 500; color: #414c44; margin-bottom: 2px; }
+.sheet-meta dd { font-size: 16px; font-weight: 700; color: #000; margin: 0; line-height: 1.4; }
+.sheet-isbn { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; font-size: 12px; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
 .sheet-isbn span { font-size: 10px; letter-spacing: .06em; align-self: center; }
 .sheet-price { font-size: 15px; font-weight: 500; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sheet-summary {
@@ -118,7 +118,7 @@
   .sheet-customer strong { font-size: 13pt; }
   .sheet-table thead { display: table-header-group; }
   .sheet-table tr { break-inside: avoid; page-break-inside: avoid; }
-  .sheet-table td { padding-top: 16px; padding-bottom: 17px; }
+  .sheet-table td { padding-top: 11px; padding-bottom: 12px; }
   .sheet-book-title { font-size: 14pt; }
   .sheet-meta dd { font-size: 12pt; }
   .sheet-isbn { font-size: 10pt; }
