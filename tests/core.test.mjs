@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeIsbn, isValidIsbn, toIsbn13, parsePrice, validateDraft, initialState, restoreState, orderTotals, escapeHtml, bookFromOpenBd } from '../core.mjs';
+import { normalizeIsbn, isValidIsbn, toIsbn13, formatIsbn, parsePrice, validateDraft, initialState, restoreState, orderTotals, escapeHtml, bookFromOpenBd } from '../core.mjs';
 
 test('ISBNの全角・ハイフン・末尾Xを処理し、チェックディジットを検証する', () => {
   assert.equal(normalizeIsbn('９７８－４－１０－１０１００１－４'), '9784101010014');
@@ -13,6 +13,39 @@ test('価格未入力と無料の本を区別し、不正な価格を受け付�
   assert.equal(parsePrice(''), null); assert.equal(parsePrice(null), null); assert.equal(parsePrice('0'), 0);
   assert.equal(parsePrice('1234'), 1234);
   for (const value of ['-1', '1.1', 'NaN', 'Infinity', '100000000']) assert.throws(() => parsePrice(value));
+});
+test('ISBNを国・出版社ごとの可変長の区切りで整形する', () => {
+  const examples = [
+    ['9784101010014', '978-4-10-101001-4'],
+    ['9784873113364', '978-4-87311-336-4'],
+    ['9781933988030', '978-1-933988-03-0'],
+    ['9791096908028', '979-10-96908-02-8'],
+    ['4101010013', '4-10-101001-3'],
+    ['080442957x', '0-8044-2957-X'],
+    ['９７８－４８７３１１３３６－４', '978-4-87311-336-4'],
+    ['978-41-0101001-4', '978-4-10-101001-4']
+  ];
+  for (const [input, expected] of examples) {
+    assert.equal(formatIsbn(input), expected, input);
+    assert.equal(formatIsbn(expected), expected, '再整形しても変わらない');
+    assert.equal(normalizeIsbn(expected), normalizeIsbn(input));
+    assert.equal(isValidIsbn(expected), true);
+  }
+});
+test('不正なISBNや未割り当ての範囲に区切りやチェックディジットを捏造しない', () => {
+  for (const value of ['', '9784101010015', '978410101001', '誤入力', '978-4-10-101001-5']) assert.equal(formatIsbn(value), value);
+  // Checksum-valid ISBN with no group in the bundled ranges.
+  assert.equal(isValidIsbn('9789999999991'), true);
+  assert.equal(formatIsbn('9789999999991'), '9789999999991');
+});
+test('保存済みのISBNもデータを書き換えず整形し、手入力は検索用の数字に正規化する', () => {
+  const state = initialState();
+  state.books.push({ id: 'saved', list: 'order', title: '保存済みの本', author: '', publisher: '', isbn: '9784873113364', price: null });
+  const restored = restoreState(JSON.stringify(state));
+  assert.equal(formatIsbn(restored.books[0].isbn), '978-4-87311-336-4');
+  assert.equal(restored.books[0].isbn, '9784873113364');
+  assert.equal(validateDraft({ title: '本', author: '', publisher: '', isbn: '978-4-87311-336-4', price: '' }).isbn, '9784873113364');
+  assert.equal(toIsbn13('4-10-101001-3'), toIsbn13('978-4-10-101001-4'));
 });
 test('注文リストの金額だけを合算し、価格不明の冊数を表示できる', () => {
   const books = [{ list: 'order', price: 1200 }, { list: 'later', price: 5000 }, { list: 'order', price: null }, { list: 'order', price: 0 }];

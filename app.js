@@ -1,4 +1,4 @@
-import { STORAGE_KEY, emptyDraft, initialState, normalizeIsbn, isValidIsbn, toIsbn13, validateDraft, orderTotals, money, escapeHtml as esc, bookFromOpenBd, restoreState } from './core.mjs';
+import { STORAGE_KEY, emptyDraft, initialState, normalizeIsbn, isValidIsbn, toIsbn13, formatIsbn, validateDraft, orderTotals, money, escapeHtml as esc, bookFromOpenBd, restoreState } from './core.mjs';
 
 const $ = id => document.getElementById(id);
 let state = initialState();
@@ -57,7 +57,7 @@ function render() {
     const later = state.activeTab === 'later';
     $('book-list').innerHTML = `<div class="empty-state">${emptyArt}<h3>${later ? '気になる本を、ここに。' : '次の一冊を、ここから。'}</h3><p>${later ? '注文リストの本を「後で買う」に移動すると、<br>この場所に保存されます。' : 'まだ注文リストに本がありません。<br>ISBNを入力するか、手入力で読みたい本を追加しましょう。'}</p><button class="text-button" data-action="${later ? 'show-order' : 'focus-isbn'}">${later ? '注文リストを見る' : '＋ 最初の一冊を追加する'}</button></div>`;
   } else {
-    $('book-list').innerHTML = items.map((b, i) => `<article class="book-card" data-id="${esc(b.id)}"><div class="book-spine" aria-hidden="true">${String(i + 1).padStart(2, '0')}</div><div class="book-main"><div class="book-top"><h3>${esc(b.title)}</h3><span class="book-price ${b.price === null ? 'unknown' : ''}">${b.price === null ? '価格未入力' : money(b.price)}</span></div><p class="book-meta"><span>${esc(b.author || '著者未入力')}</span><span>${esc(b.publisher || '出版社未入力')}</span></p><p class="book-isbn">ISBN ${esc(b.isbn || '未入力')}</p><div class="book-bottom"><button class="move-button" data-action="move"><svg aria-hidden="true" viewBox="0 0 24 24">${b.list === 'order' ? '<path d="M6 3h12v18l-6-4-6 4Z"/>' : '<path d="M4 12h15m-6-6 6 6-6 6"/>'}</svg>${b.list === 'order' ? '後で買うに移動' : '注文リストに移動'}</button><div class="book-controls"><button data-action="edit" aria-label="${esc(b.title)}を編集">編集</button><button data-action="delete" aria-label="${esc(b.title)}を削除">削除</button></div></div></div></article>`).join('');
+    $('book-list').innerHTML = items.map((b, i) => `<article class="book-card" data-id="${esc(b.id)}"><div class="book-spine" aria-hidden="true">${String(i + 1).padStart(2, '0')}</div><div class="book-main"><div class="book-top"><h3>${esc(b.title)}</h3><span class="book-price ${b.price === null ? 'unknown' : ''}">${b.price === null ? '価格未入力' : money(b.price)}</span></div><p class="book-meta"><span>${esc(b.author || '著者未入力')}</span><span>${esc(b.publisher || '出版社未入力')}</span></p><p class="book-isbn">ISBN ${esc(formatIsbn(b.isbn) || '未入力')}</p><div class="book-bottom"><button class="move-button" data-action="move"><svg aria-hidden="true" viewBox="0 0 24 24">${b.list === 'order' ? '<path d="M6 3h12v18l-6-4-6 4Z"/>' : '<path d="M4 12h15m-6-6 6 6-6 6"/>'}</svg>${b.list === 'order' ? '後で買うに移動' : '注文リストに移動'}</button><div class="book-controls"><button data-action="edit" aria-label="${esc(b.title)}を編集">編集</button><button data-action="delete" aria-label="${esc(b.title)}を削除">削除</button></div></div></div></article>`).join('');
   }
 }
 function switchTab(tab, focus = false) { state.activeTab = tab; save(); render(); if (focus) $(`${tab}-tab`).focus(); }
@@ -102,7 +102,7 @@ $('book-list').addEventListener('click', e => {
 function syncForm() {
   $('book-form').hidden = !state.formOpen;
   $('manual-button').setAttribute('aria-expanded', String(state.formOpen));
-  for (const key of Object.keys(emptyDraft())) $(`book-${key}`).value = state.draft[key];
+  for (const key of Object.keys(emptyDraft())) $(`book-${key}`).value = key === 'isbn' ? formatIsbn(state.draft[key]) : state.draft[key];
   $('form-title').textContent = state.editingId ? '書籍情報を編集' : '書籍情報を入力';
   $('add-submit').textContent = state.editingId ? '変更を保存' : '＋ 注文リストに追加';
   $('source-note').textContent = '価格がわからない場合は、空欄のまま追加できます。';
@@ -142,7 +142,13 @@ for (const key of ['name', 'phone']) {
 
 function lookupMessage(message, error = false) { $('lookup-message').textContent = message; $('lookup-message').classList.toggle('error', error); }
 function cancelLookup() { clearTimeout(lookupTimer); requestSequence++; controller?.abort(); controller = null; $('lookup-button').disabled = false; $('lookup-button').lastChild.textContent = '書籍情報を取得'; }
-$('isbn').value = state.lookupIsbn;
+$('isbn').value = formatIsbn(state.lookupIsbn);
+for (const id of ['isbn', 'book-isbn']) $(id).addEventListener('blur', e => {
+  e.target.value = formatIsbn(e.target.value);
+  if (id === 'isbn') state.lookupIsbn = e.target.value;
+  else state.draft.isbn = e.target.value;
+  save();
+});
 $('isbn').addEventListener('input', e => {
   cancelLookup(); lookupMessage(''); state.lookupIsbn = e.target.value; save();
   if (isValidIsbn(state.lookupIsbn)) lookupTimer = setTimeout(() => lookupBook(), 650);
@@ -203,7 +209,7 @@ function sheetMarkup() {
     <table class="sheet-table"><thead><tr><th scope="col">番号</th><th scope="col">ご依頼の書籍</th><th scope="col">価格（税込）</th></tr></thead><tbody>${books.map((b, i) => `<tr><td class="sheet-number">${String(i + 1).padStart(2, '0')}</td><td>
       <strong class="sheet-book-title">${esc(b.title)}</strong>
       <dl class="sheet-meta"><div><dt>著者</dt><dd>${esc(b.author || '未記入')}</dd></div><div><dt>出版社</dt><dd>${esc(b.publisher || '未記入')}</dd></div></dl>
-      <p class="sheet-isbn"><span>ISBN</span>${esc(b.isbn || '未記入')}</p>
+      <p class="sheet-isbn"><span>ISBN</span>${esc(formatIsbn(b.isbn) || '未記入')}</p>
     </td><td class="sheet-price">${b.price === null ? '未記入' : money(b.price)}</td></tr>`).join('')}</tbody></table>
     <div class="sheet-summary"><p class="sheet-quantity">ご依頼冊数 <strong>${totals.count}<span>冊</span></strong></p><div class="sheet-total"><span>参考合計（税込）</span><strong>${money(totals.total)}</strong></div></div>
     ${totals.unknown ? `<p class="sheet-notes">※ 価格未記入の${totals.unknown}冊は参考合計に含んでいません。</p>` : ''}

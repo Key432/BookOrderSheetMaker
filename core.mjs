@@ -1,3 +1,5 @@
+import isbnGroups from './vendor/isbn3/groups.mjs';
+
 export const STORAGE_KEY = 'hon-no-tayori:v1';
 export const emptyDraft = () => ({ title: '', author: '', publisher: '', isbn: '', price: '' });
 export const initialState = () => ({ version: 1, books: [], customer: { name: '', phone: '' }, draft: emptyDraft(), editingId: null, formOpen: false, lookupIsbn: '', activeTab: 'order' });
@@ -16,6 +18,30 @@ export function toIsbn13(value) {
   const prefix = '978' + isbn.slice(0, 9);
   const sum = [...prefix].reduce((n, c, i) => n + Number(c) * (i % 2 ? 3 : 1), 0);
   return prefix + ((10 - sum % 10) % 10);
+}
+export function formatIsbn(value) {
+  const isbn = normalizeIsbn(value);
+  // Preserve invalid input for correction; never repair a check digit or invent a range.
+  if (!isValidIsbn(isbn)) return String(value ?? '');
+  const isbn13 = toIsbn13(isbn);
+  const prefix = isbn13.slice(0, 3);
+  const body = isbn13.slice(3, -1);
+  for (let length = 1; length <= 5; length++) {
+    const group = body.slice(0, length);
+    const data = isbnGroups[`${prefix}-${group}`];
+    if (!data) continue;
+    const rest = body.slice(length);
+    const range = data.ranges.find(([min, max]) => {
+      const publisher = rest.slice(0, min.length);
+      return publisher.length === min.length && publisher >= min && publisher <= max;
+    });
+    if (!range || rest.length <= range[0].length) return isbn;
+    const publisherLength = range[0].length;
+    const parts = [group, rest.slice(0, publisherLength), rest.slice(publisherLength), isbn.slice(-1)];
+    if (isbn.length === 13) parts.unshift(prefix);
+    return parts.join('-');
+  }
+  return isbn;
 }
 export function parsePrice(value) {
   if (value === null || value === undefined || String(value).trim() === '') return null;
