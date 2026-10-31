@@ -196,7 +196,19 @@ function sheetMarkup() {
   const totals = orderTotals(books);
   const date = new Date();
   const stamp = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
-  return `<article class="order-sheet"><p class="sheet-eyebrow">BOOK ORDER REQUEST</p><header class="sheet-heading"><h1>書籍取り寄せ依頼票</h1><time>${esc(stamp)}</time></header><p class="sheet-message">下記の書籍のお取り寄せをお願いいたします。</p><div class="sheet-customer"><p><span>ご注文者のお名前</span><strong>${esc(state.customer.name) || '　　　　　　　　　'} 様</strong></p><p><span>お電話番号</span><strong>${esc(state.customer.phone) || '　　　　　　　　　'}</strong></p></div><table class="sheet-table"><thead><tr><th>No.</th><th>書籍情報</th><th>価格（税込）</th></tr></thead><tbody>${books.map((b, i) => `<tr><td>${i + 1}</td><td><strong>${esc(b.title)}</strong><div class="sheet-meta">著者：${esc(b.author || '未記入')}　 /　 出版社：${esc(b.publisher || '未記入')}</div><div class="sheet-isbn">ISBN：${esc(b.isbn || '未記入')}</div></td><td>${b.price === null ? '未記入' : money(b.price)}</td></tr>`).join('')}</tbody></table><div class="sheet-summary"><span>合計 ${totals.count}冊</span><span>参考合計（税込）</span><strong>${money(totals.total)}</strong></div><div class="sheet-notes">${totals.unknown ? `<p>※ 価格未記入の${totals.unknown}冊は参考合計に含んでいません。</p>` : ''}<p>※ 記載の価格は参考価格です。お取り寄せの可否・価格・納期は書店にてご確認ください。</p></div><div class="sheet-store">書店様ご記入欄</div><p class="sheet-brand">本のたより</p></article>`;
+  return `<article class="order-sheet">
+    <header class="sheet-heading"><h1>書籍取り寄せ依頼票</h1><time>${esc(stamp)}</time></header>
+    <p class="sheet-message">下記の書籍のお取り寄せをお願いいたします。</p>
+    <div class="sheet-customer"><p><span>ご注文者のお名前</span><strong>${esc(state.customer.name) || '　　　　　　　　　'} 様</strong></p><p><span>お電話番号</span><strong>${esc(state.customer.phone) || '　　　　　　　　　'}</strong></p></div>
+    <table class="sheet-table"><thead><tr><th>番号</th><th>書籍情報</th><th>価格（税込）</th></tr></thead><tbody>${books.map((b, i) => `<tr><td>${i + 1}</td><td>
+      <strong>${esc(b.title)}</strong>
+      <div class="sheet-meta"><div>著者：${esc(b.author || '未記入')}</div><div>出版社：${esc(b.publisher || '未記入')}</div></div>
+      <div class="sheet-isbn">ISBN：${esc(b.isbn || '未記入')}</div>
+    </td><td>${b.price === null ? '未記入' : money(b.price)}</td></tr>`).join('')}</tbody></table>
+    <div class="sheet-summary"><span>合計 ${totals.count}冊</span><span>参考合計（税込）</span><strong>${money(totals.total)}</strong></div>
+    ${totals.unknown ? `<p class="sheet-notes">※ 価格未記入の${totals.unknown}冊は参考合計に含んでいません。</p>` : ''}
+    <div class="sheet-store">書店様ご記入欄</div>
+  </article>`;
 }
 $('preview-button').addEventListener('click', () => {
   if (!orderTotals(state.books).count) return;
