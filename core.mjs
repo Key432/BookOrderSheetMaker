@@ -2,7 +2,7 @@ import isbnGroups from './vendor/isbn3/groups.mjs';
 
 export const STORAGE_KEY = 'hon-no-tayori:v1';
 export const emptyDraft = () => ({ title: '', author: '', publisher: '', isbn: '', price: '' });
-export const initialState = () => ({ version: 1, books: [], customer: { name: '', phone: '' }, draft: emptyDraft(), editingId: null, formOpen: false, lookupIsbn: '', activeTab: 'order' });
+export const initialState = () => ({ version: 1, books: [], history: [], customer: { name: '', phone: '' }, draft: emptyDraft(), editingId: null, formOpen: false, lookupIsbn: '', activeTab: 'order' });
 export function normalizeIsbn(value) {
   return String(value ?? '').normalize('NFKC').replace(/[\s\-‐‑‒–—―ー]/g, '').toUpperCase();
 }
@@ -60,6 +60,14 @@ export function orderTotals(books) {
   const orders = books.filter(b => b.list === 'order');
   return { count: orders.length, total: orders.reduce((sum, b) => sum + (b.price ?? 0), 0), unknown: orders.filter(b => b.price === null).length };
 }
+export function confirmOrder(state, id, confirmedAt) {
+  const books = state.books.filter(book => book.list === 'order');
+  if (!books.length) throw new Error('確定する本がありません。');
+  if (state.editingId) throw new Error('書籍情報の変更を保存するか、編集を閉じてから確定してください。');
+  if (typeof id !== 'string' || !id || state.history.some(order => order.id === id) || typeof confirmedAt !== 'string' || !Number.isFinite(new Date(confirmedAt).getTime())) throw new Error('履歴を作成できませんでした。');
+  const order = { id, confirmedAt, books: books.map(book => ({ ...book })), customer: { ...state.customer } };
+  return { ...state, books: state.books.filter(book => book.list !== 'order'), history: [order, ...state.history], activeTab: 'order' };
+}
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
 export function bookFromOpenBd(record, isbn) {
@@ -77,17 +85,36 @@ export function bookFromOpenBd(record, isbn) {
   if (!title) return null;
   return { title: String(title), author: String(summary.author || array(onix.DescriptiveDetail?.Contributor).map(c => c.PersonName).filter(Boolean).join(' / ')), publisher: String(summary.publisher || onix.PublishingDetail?.Imprint?.ImprintName || ''), isbn, price: price === null ? '' : String(price) };
 }
-export function restoreState(raw) {
-  const data = JSON.parse(raw);
-  if (data?.version !== 1 || !Array.isArray(data.books)) throw new Error('保存データの形式が異なります。');
-  const state = initialState();
+function restoreBooks(books, allowedLists = ['order', 'later']) {
+  if (!Array.isArray(books)) throw new Error('保存された書籍の形式が異なります。');
   const ids = new Set();
-  state.books = data.books.map(b => {
-    if (!b || typeof b.id !== 'string' || ids.has(b.id) || !['order', 'later'].includes(b.list) || typeof b.title !== 'string' || !b.title.trim()) throw new Error('保存された書籍の形式が異なります。');
+  return books.map(b => {
+    if (!b || typeof b.id !== 'string' || ids.has(b.id) || !allowedLists.includes(b.list) || typeof b.title !== 'string' || !b.title.trim()) throw new Error('保存された書籍の形式が異なります。');
     ids.add(b.id);
     const text = key => typeof b[key] === 'string' ? b[key] : '';
     return { id: b.id, list: b.list, title: b.title, author: text('author'), publisher: text('publisher'), isbn: text('isbn'), price: parsePrice(b.price) };
   });
+}
+function restoreCustomer(customer) {
+  return { name: typeof customer?.name === 'string' ? customer.name : '', phone: typeof customer?.phone === 'string' ? customer.phone : '' };
+}
+export function restoreState(raw) {
+  const data = JSON.parse(raw);
+  if (data?.version !== 1 || !Array.isArray(data.books)) throw new Error('保存データの形式が異なります。');
+  const state = initialState();
+  state.books = restoreBooks(data.books);
+  const ids = new Set(state.books.map(book => book.id));
+  if (data.history !== undefined) {
+    if (!Array.isArray(data.history)) throw new Error('履歴の形式が異なります。');
+    const historyIds = new Set();
+    state.history = data.history.map(order => {
+      if (!order || typeof order.id !== 'string' || historyIds.has(order.id) || typeof order.confirmedAt !== 'string' || !Number.isFinite(new Date(order.confirmedAt).getTime())) throw new Error('履歴の形式が異なります。');
+      historyIds.add(order.id);
+      const books = restoreBooks(order.books, ['order']);
+      if (!books.length) throw new Error('履歴に書籍がありません。');
+      return { id: order.id, confirmedAt: order.confirmedAt, books, customer: restoreCustomer(order.customer) };
+    });
+  }
   for (const key of ['name', 'phone']) if (typeof data.customer?.[key] === 'string') state.customer[key] = data.customer[key];
   for (const key of Object.keys(state.draft)) if (typeof data.draft?.[key] === 'string') state.draft[key] = data.draft[key];
   state.editingId = ids.has(data.editingId) ? data.editingId : null;

@@ -1,4 +1,5 @@
-import { STORAGE_KEY, emptyDraft, initialState, normalizeIsbn, isValidIsbn, toIsbn13, formatIsbn, validateDraft, orderTotals, money, escapeHtml as esc, bookFromOpenBd, restoreState } from './core.mjs';
+import { STORAGE_KEY, emptyDraft, initialState, normalizeIsbn, isValidIsbn, toIsbn13, formatIsbn, validateDraft, orderTotals, money, escapeHtml as esc, bookFromOpenBd, restoreState, confirmOrder } from './core.mjs';
+import { orderSheetMarkup } from './sheet.mjs';
 
 const $ = id => document.getElementById(id);
 let state = initialState();
@@ -6,13 +7,15 @@ let storageBlocked = false;
 let toastTimer, lookupTimer, controller;
 let requestSequence = 0;
 let undoAction = null;
+let previewOrder = null;
+let deletedHistory = null;
 try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) state = restoreState(saved); }
 catch { storageBlocked = true; }
 
-function save() {
-  if (storageBlocked) return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch { storageBlocked = true; updateSaveStatus(); notify('保存できませんでした。サイトデータや空き容量を確認してください。'); }
+function save(nextState = state) {
+  if (storageBlocked) return false;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState)); return true; }
+  catch { storageBlocked = true; updateSaveStatus(); notify('保存できませんでした。サイトデータや空き容量を確認してください。'); return false; }
 }
 function updateSaveStatus() {
   if (!storageBlocked) return;
@@ -20,6 +23,7 @@ function updateSaveStatus() {
   $('save-status').innerHTML = '<span></span>自動保存できません';
   $('save-status').title = 'ブラウザーの保存領域を利用できないか、保存データを読み込めませんでした。既存データは上書きしていません。';
   document.querySelector('.list-footnote span').textContent = '保存領域を利用できないため、今回の変更は保存されません。';
+  $('confirm-button').disabled = true;
 }
 function notify(message, undo = null) {
   clearTimeout(toastTimer);
@@ -45,6 +49,8 @@ function render() {
   $('total').textContent = money(totals.total);
   $('price-note').textContent = totals.unknown ? `価格未入力 ${totals.unknown}冊を除く参考合計です。` : totals.count ? '価格は目安です。実際の価格は書店でご確認ください。' : '書籍を追加すると合計が表示されます。';
   $('preview-button').disabled = !totals.count;
+  $('confirm-button').disabled = !totals.count || storageBlocked;
+  $('history-count').textContent = state.history.length;
   $('clear-order-button').disabled = !totals.count;
   $('clear-order-button').hidden = state.activeTab !== 'order';
   const items = state.books.filter(b => b.list === state.activeTab);
@@ -61,6 +67,7 @@ function render() {
   } else {
     $('book-list').innerHTML = items.map((b, i) => `<article class="book-card" data-id="${esc(b.id)}"><div class="book-spine" aria-hidden="true">${String(i + 1).padStart(2, '0')}</div><div class="book-main"><div class="book-top"><h3>${esc(b.title)}</h3><span class="book-price ${b.price === null ? 'unknown' : ''}">${b.price === null ? '価格未入力' : money(b.price)}</span></div><p class="book-meta"><span>${esc(b.author || '著者未入力')}</span><span>${esc(b.publisher || '出版社未入力')}</span></p><p class="book-isbn">ISBN ${esc(formatIsbn(b.isbn) || '未入力')}</p><div class="book-bottom"><button class="move-button" data-action="move"><svg aria-hidden="true" viewBox="0 0 24 24">${b.list === 'order' ? '<path d="M6 3h12v18l-6-4-6 4Z"/>' : '<path d="M4 12h15m-6-6 6 6-6 6"/>'}</svg>${b.list === 'order' ? '後で買うに移動' : '注文リストに移動'}</button><div class="book-controls"><button data-action="edit" aria-label="${esc(b.title)}を編集">編集</button><button data-action="delete" aria-label="${esc(b.title)}を削除">削除</button></div></div></div></article>`).join('');
   }
+  renderHistory();
 }
 function switchTab(tab, focus = false) { state.activeTab = tab; save(); render(); if (focus) $(`${tab}-tab`).focus(); }
 $('clear-order-button').addEventListener('click', () => {
@@ -212,34 +219,71 @@ async function lookupBook() {
   }
 }
 
-function sheetMarkup() {
-  const books = state.books.filter(b => b.list === 'order');
-  const totals = orderTotals(books);
-  const date = new Date();
-  const stamp = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
-  return `<article class="order-sheet">
-    <header class="sheet-heading"><h1>書籍取り寄せ依頼票</h1><div class="sheet-date"><span>ご依頼日</span><time>${esc(stamp)}</time></div></header>
-    <p class="sheet-message">下記の書籍のお取り寄せをお願いいたします。</p>
-    <div class="sheet-customer"><div><span class="sheet-label">お名前</span><p><strong>${esc(state.customer.name)}</strong><span class="sheet-honorific">様</span></p></div><div><span class="sheet-label">お電話番号</span><p><strong>${esc(state.customer.phone)}</strong></p></div></div>
-    <table class="sheet-table"><thead><tr><th scope="col">番号</th><th scope="col">ご依頼の書籍</th><th scope="col">価格（税込）</th></tr></thead><tbody>${books.map((b, i) => `<tr><td class="sheet-number">${String(i + 1).padStart(2, '0')}</td><td>
-      <strong class="sheet-book-title">${esc(b.title)}</strong>
-      <dl class="sheet-meta"><div><dt>著者</dt><dd>${esc(b.author || '未記入')}</dd></div><div><dt>出版社</dt><dd>${esc(b.publisher || '未記入')}</dd></div></dl>
-      <p class="sheet-isbn"><span>ISBN</span>${esc(formatIsbn(b.isbn) || '未記入')}</p>
-    </td><td class="sheet-price">${b.price === null ? '未記入' : money(b.price)}</td></tr>`).join('')}</tbody></table>
-    <div class="sheet-summary"><p class="sheet-quantity">ご依頼冊数 <strong>${totals.count}<span>冊</span></strong></p><div class="sheet-total"><span>参考合計（税込）</span><strong>${money(totals.total)}</strong></div></div>
-    ${totals.unknown ? `<p class="sheet-notes">※ 価格未記入の${totals.unknown}冊は参考合計に含んでいません。</p>` : ''}
-    <div class="sheet-store"><span>書店様ご記入欄</span><div class="sheet-writing-line"></div><div class="sheet-writing-line"></div></div>
-  </article>`;
+function renderHistory() {
+  if (!state.history.length) {
+    $('history-list').innerHTML = '<div class="history-empty"><h3>まだ確定した注文票はありません。</h3><p>注文リストの「確定して履歴に保存」から残せます。</p></div>';
+    return;
+  }
+  $('history-list').innerHTML = state.history.map(order => {
+    const totals = orderTotals(order.books);
+    const stamp = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.confirmedAt));
+    return `<article class="history-card" data-history-id="${esc(order.id)}"><div class="history-card-top"><div><time datetime="${esc(order.confirmedAt)}">${esc(stamp)}</time><span class="history-confirmed">確定済み</span></div><strong>${money(totals.total)}</strong></div><p class="history-titles">${esc(order.books.slice(0, 2).map(book => book.title).join(' / '))}${order.books.length > 2 ? ` ほか${order.books.length - 2}冊` : ''}</p><p class="history-meta">${totals.count}冊${order.customer.name ? ` · ${esc(order.customer.name)} 様` : ''}${totals.unknown ? ` · 価格未入力 ${totals.unknown}冊` : ''}</p><div class="history-card-actions"><button type="button" class="button secondary" data-history-action="preview">注文票を確認・再印刷</button><button type="button" class="text-button history-delete" data-history-action="delete" aria-label="${esc(stamp)}の履歴を削除">履歴を削除</button></div></article>`;
+  }).join('');
 }
-$('preview-button').addEventListener('click', () => {
-  if (!orderTotals(state.books).count) return;
-  const markup = sheetMarkup();
+function historyFeedback(message, canUndo = false) {
+  $('history-feedback-text').textContent = message;
+  $('history-feedback').hidden = false;
+  $('undo-history-delete').hidden = !canUndo;
+}
+$('history-button').addEventListener('click', () => { renderHistory(); $('history-dialog').showModal(); });
+$('history-list').addEventListener('click', e => {
+  const button = e.target.closest('button[data-history-action]');
+  if (!button) return;
+  const id = button.closest('[data-history-id]').dataset.historyId;
+  const order = state.history.find(record => record.id === id);
+  if (!order) return;
+  if (button.dataset.historyAction === 'preview') { openPreview(order); return; }
+  const nextState = { ...state, history: state.history.filter(record => record.id !== id) };
+  if (!save(nextState)) { historyFeedback('履歴を削除できませんでした。ブラウザーの保存領域を確認してください。'); return; }
+  deletedHistory = order;
+  state = nextState;
+  render();
+  historyFeedback('履歴を1件削除しました。', true);
+  $('undo-history-delete').focus();
+});
+$('undo-history-delete').addEventListener('click', () => {
+  if (!deletedHistory) return;
+  const history = [...state.history, deletedHistory].sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
+  const nextState = { ...state, history };
+  if (!save(nextState)) { historyFeedback('履歴を復元できませんでした。', true); return; }
+  state = nextState; deletedHistory = null;
+  render(); historyFeedback('履歴を元に戻しました。');
+  $('history-heading').focus();
+});
+$('confirm-button').addEventListener('click', () => {
+  let nextState;
+  try { nextState = confirmOrder(state, crypto.randomUUID(), new Date().toISOString()); }
+  catch (error) { notify(error.message); return; }
+  // Persist the snapshot and the cleared list together before changing the visible state.
+  if (!save(nextState)) { notify('履歴に保存できなかったため、注文リストは確定していません。'); return; }
+  state = nextState;
+  notify('注文票を確定し、履歴に保存しました。');
+  render();
+  openPreview(state.history[0]);
+});
+function openPreview(order = null) {
+  previewOrder = order;
+  $('preview-heading').textContent = order ? '確定した注文票' : '注文票のプレビュー';
+  $('preview-description').textContent = order ? '確定時の内容 / A4・縦' : 'A4・縦 / 注文リストのみを印刷';
+  const markup = orderSheetMarkup(order ?? state);
   $('preview-content').innerHTML = markup;
   $('print-root').innerHTML = markup;
   $('preview-dialog').showModal();
-});
-$('print-button').addEventListener('click', () => { $('print-root').innerHTML = sheetMarkup(); window.print(); });
-window.addEventListener('beforeprint', () => { $('print-root').innerHTML = sheetMarkup(); });
+}
+$('preview-button').addEventListener('click', () => { if (orderTotals(state.books).count) openPreview(); });
+$('print-button').addEventListener('click', () => { $('print-root').innerHTML = orderSheetMarkup(previewOrder ?? state); window.print(); });
+window.addEventListener('beforeprint', () => { $('print-root').innerHTML = orderSheetMarkup(previewOrder ?? state); });
+$('preview-dialog').addEventListener('close', () => { previewOrder = null; $('print-root').innerHTML = orderSheetMarkup(state); });
 $('help-button').addEventListener('click', () => $('help-dialog').showModal());
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => $(button.dataset.close).close()));
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', e => { if (e.target === dialog) { const r = dialog.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close(); } }));

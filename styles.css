@@ -13,6 +13,37 @@
 .clear-order-button svg { width: 13px; height: 13px; }
 .clear-order-button:hover:enabled { color: #a23627; text-decoration: underline; text-underline-offset: 3px; }
 
+.history-short-label { display: none; }
+.history-count { min-width: 20px; padding: 0 5px; border-radius: 4px; background: var(--pale); color: var(--green); font-size: 10px; text-align: center; }
+.summary-panel .confirm-button { width: 100%; margin-top: 10px; }
+.confirm-note { font-size: 10px; color: #697961; margin-top: 9px; line-height: 1.8; }
+.history-dialog { width: 710px; }
+.history-description { font-size: 11px; color: var(--muted); margin: 10px 0 24px; }
+.history-card { border: 1px solid var(--line); border-radius: 8px; padding: 20px; margin-top: 13px; }
+.history-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.history-card-top > div { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.history-card time { font-size: 13px; font-weight: 600; }
+.history-confirmed { font-size: 10px; color: var(--green); background: var(--pale); padding: 1px 7px; border-radius: 4px; }
+.history-card-top > strong { font-family: Georgia, serif; font-size: 22px; font-weight: 400; white-space: nowrap; }
+.history-titles { margin-top: 12px; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.history-meta { color: var(--muted); font-size: 11px; margin-top: 6px; overflow-wrap: anywhere; }
+.history-card-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 17px; }
+.history-delete { font-size: 11px; color: #8b5145; }
+.history-empty { padding: 36px 14px; border: 1px dashed var(--line); border-radius: 8px; text-align: center; }
+.history-empty h3 { font-size: 14px; font-weight: 500; }
+.history-empty p { font-size: 11px; color: var(--muted); margin-top: 9px; }
+.history-feedback { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; border-radius: 6px; background: var(--pale); font-size: 12px; margin-top: 18px; }
+.history-feedback .text-button { color: var(--green); font-size: 11px; }
+@media(max-width:720px) {
+  .history-long-label { display: none; }
+  .history-short-label { display: inline; }
+  .header-actions { gap: 14px; }
+  .history-dialog { padding: 20px; }
+  .history-card { padding: 16px; }
+  .history-card-top > strong { font-size: 19px; }
+  .history-card-actions .button { font-size: 11px; padding: 10px 12px; }
+}
+
 /* The order sheet uses the same layout in the preview and on paper. */
 .order-sheet {
   background: #fff;
